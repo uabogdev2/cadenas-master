@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Lock Game</title>
+    <link rel="stylesheet" href="/admin-panel/styles.css">
+    <!-- Firebase SDK - Chargé en premier dans le head -->
+    <script type="module" src="/admin-panel/firebase-init.js"></script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen">
+        <div class="login-container">
+            <div class="login-card">
+                <h1>🔐 Admin Panel</h1>
+                <p>Lock Game - Administration</p>
+                <div id="loginError" class="error-message" style="display: none;"></div>
+                <button id="loginBtn" class="btn btn-primary">
+                    <span>🔑</span> Se connecter avec Google
+                </button>
+                <div id="setupAdmin" style="display: none; margin-top: 20px;">
+                    <p style="color: #666; font-size: 14px;">Aucun administrateur n'existe encore.</p>
+                    <button id="createFirstAdminBtn" class="btn btn-success">
+                        Créer le premier administrateur
+                    </button>
+                </div>
+                <div style="margin-top: 20px; padding: 12px; background-color: #f0f0f0; border-radius: 6px; font-size: 12px; color: #666;">
+                    <strong>Note :</strong> Si vous obtenez une erreur "unauthorized-domain", 
+                    ajoutez ce domaine dans Firebase Console > Authentication > Settings > Authorized domains.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="dashboardScreen" class="screen" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🔐 Admin Panel</h2>
+                <div class="user-info">
+                    <img id="userAvatar" src="" alt="Avatar" class="avatar">
+                    <div>
+                        <div id="userName" class="user-name"></div>
+                        <div id="userEmail" class="user-email"></div>
+                    </div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-section="dashboard">
+                    <span>📊</span> Dashboard
+                </a>
+                <a href="#" class="nav-item" data-section="users">
+                    <span>👥</span> Utilisateurs
+                </a>
+                <a href="#" class="nav-item" data-section="levels">
+                    <span>🎮</span> Niveaux
+                </a>
+                <a href="#" class="nav-item" data-section="battles">
+                    <span>⚔️</span> Batailles
+                </a>
+                <a href="#" class="nav-item" data-section="admins">
+                    <span>👨‍💼</span> Administrateurs
+                </a>
+                <a href="#" class="nav-item" data-section="stats">
+                    <span>📈</span> Statistiques
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn btn-secondary">Déconnexion</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1 id="pageTitle">Dashboard</h1>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="statUsers">-</div>
+                            <div class="stat-label">Utilisateurs</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎮</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="statLevels">-</div>
+                            <div class="stat-label">Niveaux</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚔️</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="statBattles">-</div>
+                            <div class="stat-label">Batailles</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="statPoints">-</div>
+                            <div class="stat-label">Points totaux</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Users Section -->
+            <section id="users" class="content-section">
+                <div class="section-header">
+                    <h2>Gestion des utilisateurs</h2>
+                    <button class="btn btn-primary" onclick="refreshUsers()">Actualiser</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nom</th>
+                                <th>Email</th>
+                                <th>Points</th>
+                                <th>Niveaux complétés</th>
+                                <th>Trophées</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="7" class="loading">Chargement...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Levels Section -->
+            <section id="levels" class="content-section">
+                <div class="section-header">
+                    <h2>Gestion des niveaux</h2>
+                    <div>
+                        <button class="btn btn-success" onclick="initializeLevels()">Initialiser les niveaux</button>
+                        <button class="btn btn-primary" onclick="refreshLevels()">Actualiser</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nom</th>
+                                <th>Points</th>
+                                <th>Limite de temps</th>
+                                <th>Verrouillé</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="levelsTableBody">
+                            <tr>
+                                <td colspan="6" class="loading">Chargement...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Battles Section -->
+            <section id="battles" class="content-section">
+                <div class="section-header">
+                    <h2>Gestion des batailles</h2>
+                    <button class="btn btn-primary" onclick="refreshBattles()">Actualiser</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Joueur 1</th>
+                                <th>Joueur 2</th>
+                                <th>Statut</th>
+                                <th>Mode</th>
+                                <th>Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="battlesTableBody">
+                            <tr>
+                                <td colspan="7" class="loading">Chargement...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Admins Section -->
+            <section id="admins" class="content-section">
+                <div class="section-header">
+                    <h2>Gestion des administrateurs</h2>
+                    <button class="btn btn-primary" onclick="refreshAdmins()">Actualiser</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Nom</th>
+                                <th>Email</th>
+                                <th>Permissions</th>
+                                <th>Actions</th>
+                                <th>Options</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminsTableBody">
+                            <tr>
+                                <td colspan="6" class="loading">Chargement...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Stats Section -->
+            <section id="stats" class="content-section">
+                <div class="section-header">
+                    <h2>Statistiques globales</h2>
+                    <button class="btn btn-primary" onclick="refreshStats()">Actualiser</button>
+                </div>
+                <div id="statsContent" class="stats-content">
+                    <div class="loading">Chargement...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- App.js - Chargé après Firebase (qui est dans le head) -->
+    <script type="module" src="/admin-panel/app.js"></script>
+</body>
+</html>
+

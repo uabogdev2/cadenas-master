@@ -1,0 +1,15 @@
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/nwnwybtegt/test.cdn-aboapp.online"
+PassengerBaseURI "/"
+PassengerNodejs "/home/nwnwybtegt/nodevenv/test.cdn-aboapp.online/24/bin/node"
+PassengerAppType node
+PassengerStartupFile server.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION BEGIN
+<IfModule Litespeed>
+SetEnv API_BASE_URL https://socket.cdn-aboapp.online
+SetEnv API_TIMEOUT 8000
+SetEnv CORS_ALLOWED_ORIGINS https://test.cdn-aboapp.online
+SetEnv PORT 5901
+</IfModule>
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION END

@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1001043163664",
+    "project_id": "lock-game-77697",
+    "storage_bucket": "lock-game-77697.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1001043163664:android:ab726515dcbccbd7b6a895",
+        "android_client_info": {
+          "package_name": "com.pegadev.lockgame"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1001043163664-1eru85ntdfcj5lm2jj2f6e22n3ju07ln.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwf79GLzCbSE04k2Mlko9mG6izwP5TU_E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1001043163664-1eru85ntdfcj5lm2jj2f6e22n3ju07ln.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1001043163664-9fvfl4jc38rctpu1dr1e1k4orap10svk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.codeLockPuzzle"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

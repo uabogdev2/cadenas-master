@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Socket.IO Test – Lock Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Inter", system-ui, -apple-system, blinkmacsystemfont, "Segoe UI", sans-serif;
+        background: #050816;
+        color: #f7f7ff;
+      }
+      body {
+        margin: 0;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        min-height: 100vh;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 3vw, 2.4rem);
+      }
+      .card {
+        background: rgba(8, 12, 32, 0.85);
+        border: 1px solid rgba(91, 192, 190, 0.4);
+        border-radius: 14px;
+        padding: 1.5rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      }
+      label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.4rem;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: inherit;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 0.7rem 1.6rem;
+        background: linear-gradient(135deg, #5bc0be, #3aafa9);
+        color: #021420;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 120ms ease, opacity 120ms ease;
+      }
+      button:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-top: 1rem;
+      }
+      #log {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        background: rgba(0, 0, 0, 0.55);
+        border-radius: 12px;
+        padding: 1rem;
+        min-height: 220px;
+        white-space: pre-wrap;
+        overflow-y: auto;
+        line-height: 1.45;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0.35rem 0.85rem;
+        background: rgba(91, 192, 190, 0.2);
+        border-radius: 999px;
+        font-size: 0.85rem;
+        color: #5bc0be;
+      }
+      .grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>Test Socket.IO – Lock Game</h1>
+      <p>
+        Cette page permet de vérifier rapidement que le serveur Socket.IO accepte les connexions
+        authentifiées. Fournis un ID token Firebase (issu d’un utilisateur connecté) puis lance les
+        actions pour voir les événements temps réel.
+      </p>
+    </div>
+
+    <div class="card">
+      <form id="connect-form">
+        <label for="token">ID Token Firebase (auth.token)</label>
+        <textarea id="token" placeholder="eyJhbGciOi..." required></textarea>
+        <div class="actions" style="margin-top: 0.8rem">
+          <button type="submit">Se connecter</button>
+          <button type="button" id="disconnect-btn">Se déconnecter</button>
+        </div>
+      </form>
+      <div style="margin-top: 0.6rem" class="badge" id="status-badge">Déconnecté</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Actions rapides</h2>
+        <div class="actions" style="margin-top: 0.6rem">
+          <button type="button" data-action="ping">Ping</button>
+          <button type="button" data-action="matchmaking">Matchmaking Ranked</button>
+          <button type="button" data-action="create-ranked">Créer battle ranked</button>
+          <button type="button" data-action="find-ranked">findBattle Ranked</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Actions avancées</h2>
+        <label for="battle-id-input">battleId</label>
+        <input id="battle-id-input" placeholder="ex: 123" />
+        <label for="question-index-input" style="margin-top: 0.8rem">questionIndex</label>
+        <input id="question-index-input" placeholder="ex: 0" type="number" min="0" />
+        <div class="actions" style="margin-top: 0.8rem">
+          <button type="button" data-action="join">Rejoindre</button>
+          <button type="button" data-action="next">Next question</button>
+          <button type="button" data-action="score">Increment score</button>
+          <button type="button" data-action="finish">Finish battle</button>
+          <button type="button" data-action="abandon">Abandon battle</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Journal</h2>
+      <div id="log"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const logArea = document.getElementById("log");
+      const statusBadge = document.getElementById("status-badge");
+      const battleIdInput = document.getElementById("battle-id-input");
+      const questionIndexInput = document.getElementById("question-index-input");
+      let socket = null;
+
+      const log = (type, message, payload) => {
+        const ts = new Date().toLocaleTimeString();
+        const serialized = payload ? JSON.stringify(payload, null, 2) : "";
+        logArea.textContent += `[${ts}] ${type.toUpperCase()} - ${message}${
+          serialized ? `\n${serialized}` : ""
+        }\n\n`;
+        logArea.scrollTop = logArea.scrollHeight;
+      };
+
+      const setStatus = (text, success = false) => {
+        statusBadge.textContent = text;
+        statusBadge.style.background = success
+          ? "rgba(40, 180, 99, 0.2)"
+          : "rgba(255, 69, 58, 0.2)";
+        statusBadge.style.color = success ? "#2ecc71" : "#ff5c5c";
+      };
+
+      const connect = (token) => {
+        if (socket) {
+          socket.disconnect();
+        }
+
+        socket = io("/", {
+          transports: ["websocket", "polling"],
+          auth: { token },
+        });
+
+        socket.on("connect", () => {
+          setStatus(`Connecté (${socket.id})`, true);
+          log("info", "Connexion établie", { socketId: socket.id });
+        });
+
+        socket.on("connect_error", (error) => {
+          setStatus("Erreur connexion", false);
+          log("error", "connect_error", {
+            message: error?.message,
+            data: error?.data,
+          });
+          alert(`Connexion refusée: ${error?.message || "voir journal"}`);
+        });
+
+        socket.on("disconnect", (reason) => {
+          setStatus(`Déconnecté (${reason})`, false);
+          log("info", "Déconnecté", { reason });
+        });
+
+        ["ready", "battleCreated", "battleFound", "friendlyRoomFound", "battleStarted", "battleUpdated", "battleFinished", "battleDeleted", "pong"].forEach(
+          (event) => {
+            socket.on(event, (payload) => log("event", event, payload));
+          }
+        );
+
+        socket.on("error", (payload) => log("error", "socket error", payload));
+      };
+
+      document.getElementById("connect-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const token = document.getElementById("token").value.trim();
+        if (!token) {
+          alert("Merci de fournir un ID token Firebase.");
+          return;
+        }
+        connect(token);
+      });
+
+      document.getElementById("disconnect-btn").addEventListener("click", () => {
+        if (socket) {
+          socket.disconnect();
+        }
+      });
+
+      document.querySelectorAll("[data-action]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (!socket || !socket.connected) {
+            alert("Connecte-toi d'abord avec un ID token valide.");
+            return;
+          }
+
+          const action = btn.dataset.action;
+          const battleIdRaw = battleIdInput.value.trim();
+          const battleId = battleIdRaw ? Number(battleIdRaw) || battleIdRaw : undefined;
+          const questionIndex = Number(questionIndexInput.value);
+
+          switch (action) {
+            case "ping":
+              socket.emit("ping", "test depuis /socket-test");
+              log("info", "ping émis");
+              break;
+            case "matchmaking":
+              socket.emit("matchmakingRanked");
+              log("info", "matchmakingRanked émis");
+              break;
+            case "create-ranked":
+              socket.emit("createBattle", { mode: "ranked" });
+              log("info", "createBattle (ranked) émis");
+              break;
+            case "find-ranked":
+              socket.emit("findBattle", "ranked");
+              log("info", "findBattle (ranked) émis");
+              break;
+            case "join":
+              if (!battleId) return alert("battleId requis");
+              socket.emit("joinBattle", { battleId });
+              log("info", "joinBattle émis", { battleId });
+              break;
+            case "next":
+              if (!battleId) return alert("battleId requis");
+              socket.emit("nextQuestion", { battleId });
+              log("info", "nextQuestion émis", { battleId });
+              break;
+            case "score":
+              if (!battleId) return alert("battleId requis");
+              if (Number.isNaN(questionIndex)) return alert("questionIndex requis");
+              socket.emit("incrementScoreAndNext", { battleId, questionIndex });
+              log("info", "incrementScoreAndNext émis", { battleId, questionIndex });
+              break;
+            case "finish":
+              if (!battleId) return alert("battleId requis");
+              socket.emit("finishBattle", { battleId });
+              log("info", "finishBattle émis", { battleId });
+              break;
+            case "abandon":
+              if (!battleId) return alert("battleId requis");
+              socket.emit("abandonBattle", { battleId });
+              log("info", "abandonBattle émis", { battleId });
+              break;
+            default:
+              alert(`Action inconnue: ${action}`);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
+

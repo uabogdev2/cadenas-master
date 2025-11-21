@@ -1,0 +1,193 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Fonctions utilitaires
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    function isValidLevelData(data) {
+      return data.size() <= 10 && 
+        'id' in data && data.id is number &&
+        'title' in data && data.title is string &&
+        'description' in data && data.description is string &&
+        'difficulty' in data && data.difficulty is number &&
+        'solution' in data && data.solution is string;
+    }
+    
+    // Collection des niveaux
+    match /levels/{levelId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidLevelData(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    // Collection des utilisateurs
+    match /users/{userId} {
+      // Règles pour le document utilisateur principal
+      // Permettre la lecture pour le classement (tous les utilisateurs authentifiés peuvent voir les trophées)
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      // Permettre la mise à jour :
+      // - Par le propriétaire ou admin (tous les champs)
+      // - Par n'importe quel utilisateur authentifié (uniquement le champ 'trophies' et 'updatedAt' pour le système de duel)
+      allow update: if isOwner(userId) || isAdmin() || 
+        (isAuthenticated() && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trophies', 'updatedAt']) &&
+         request.resource.data.trophies is int &&
+         request.resource.data.trophies >= 0);
+      allow delete: if isAdmin();
+      
+      // Sous-collection pour la progression des niveaux
+      match /progress/{levelId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
+      
+      // Sous-collection pour les statistiques
+      match /stats/{statId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
+      
+      // Sous-collection pour les indices débloqués
+      match /unlockedHints/{hintId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
+      
+      // Sous-collection pour les achats
+      match /purchases/{purchaseId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow update, delete: if isAdmin();
+      }
+    }
+    
+    // Collection des administrateurs
+    match /admins/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAdmin();
+    }
+    
+    // Collection des paramètres globaux du jeu
+    match /gameSettings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Collection des classements
+    match /leaderboards/{boardId} {
+      allow read: if isAuthenticated();
+      
+      // Sous-collection pour les scores
+      match /scores/{scoreId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if isAdmin();
+      }
+    }
+    
+    // Collection des événements et défis temporaires
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+      
+      // Sous-collection pour les participants
+      match /participants/{userId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+    
+    // Collection des notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && 
+        (request.auth.uid == resource.data.userId || resource.data.isGlobal == true);
+      allow write: if isAdmin();
+    }
+    
+    // Collection des journaux d'activité (pour l'analyse)
+    match /activityLogs/{logId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+    
+    // Collection des batailles
+    // IMPORTANT: Un duel doit avoir EXACTEMENT 2 joueurs (player1 et player2)
+    match /battles/{battleId} {
+      // Tout le monde peut lire les batailles
+      allow read: if isAuthenticated();
+      
+      // Création d'une nouvelle bataille (salle)
+      // Le joueur 1 crée une bataille en attente (player2 = null)
+      // Le mode doit être 'ranked' ou 'friendly'
+      // roomId est optionnel et uniquement pour le mode 'friendly'
+      allow create: if isAuthenticated() && 
+        request.resource.data.player1 == request.auth.uid &&
+        request.resource.data.status == 'waiting' &&
+        request.resource.data.player2 == null &&
+        request.resource.data.mode in ['ranked', 'friendly'] &&
+        (request.resource.data.mode == 'ranked' || 
+         (request.resource.data.mode == 'friendly' && 
+          'roomId' in request.resource.data && 
+          request.resource.data.roomId is string));
+      
+      // Mise à jour d'une bataille existante
+      allow update: if isAuthenticated() && (
+        // Le joueur 1 peut mettre à jour son score et les index de questions
+        // IMPORTANT: S'assurer que player2 ne change pas (pas de 3ème joueur)
+        (resource.data.player1 == request.auth.uid && 
+         request.resource.data.player1 == request.auth.uid &&
+         request.resource.data.player2 == resource.data.player2) ||
+        
+        // Le joueur 2 peut rejoindre une bataille en attente (SEULEMENT si player2 est null)
+        // (changer status de 'waiting' à 'active', ajouter player2, questions, etc.)
+        // IMPORTANT: S'assurer qu'on ne peut rejoindre que si player2 est null (exactement 2 joueurs)
+        (resource.data.status == 'waiting' && 
+         resource.data.player2 == null &&
+         request.resource.data.player2 == request.auth.uid &&
+         request.resource.data.player1 == resource.data.player1 &&
+         request.resource.data.status == 'active') ||
+         
+        // Le joueur 2 peut mettre à jour son score et les index de questions
+        // IMPORTANT: S'assurer que player1 et player2 ne changent pas (pas de 3ème joueur)
+        (resource.data.player2 == request.auth.uid && 
+         request.resource.data.player2 == request.auth.uid &&
+         request.resource.data.player1 == resource.data.player1) ||
+        
+        // Les administrateurs peuvent tout faire
+        isAdmin()
+      );
+      
+      // Le créateur peut supprimer sa bataille si elle est en attente et vide
+      // Les administrateurs peuvent supprimer toutes les batailles
+      allow delete: if isAuthenticated() && (
+        // Le joueur 1 peut supprimer sa bataille si elle est en attente et n'a pas de joueur 2
+        (resource.data.status == 'waiting' && 
+         resource.data.player1 == request.auth.uid && 
+         resource.data.player2 == null) ||
+        // Les administrateurs peuvent tout supprimer
+        isAdmin()
+      );
+    }
+    
+    // Les trophées sont stockés dans le document utilisateur, donc les règles existantes s'appliquent
+    // Mais nous devons permettre la lecture publique pour le classement
+    // Note: Les trophées sont dans users/{userId}.trophies, donc les règles users s'appliquent
+    // Pour le classement, nous devons permettre la lecture des trophées
+    // Modifions les règles users pour permettre la lecture des trophées pour le classement
+  }
+} 

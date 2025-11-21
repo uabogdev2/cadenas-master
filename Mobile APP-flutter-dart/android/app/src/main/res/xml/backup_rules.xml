@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Inclure toutes les préférences partagées -->
+    <include domain="sharedpref" path="."/>
+    <!-- Exclure les préférences qui contiennent des données sensibles -->
+    <exclude domain="sharedpref" path="sensitive_data.xml"/>
+</full-backup-content> 
