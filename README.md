@@ -37,7 +37,7 @@ Cadenas Master est une application mobile multiplateforme (Android & iOS) qui co
 - **Contrôles audio** dans les paramètres
 
 ### 📊 Synchronisation Cloud
-- **Sauvegarde automatique** de votre progression sur Firebase
+- **Sauvegarde automatique** de votre progression
 - **Synchronisation multi-appareils** pour continuer sur n'importe quel device
 - **Système de versioning** optimisé pour réduire la charge serveur
 
@@ -51,10 +51,8 @@ Cadenas Master est une application mobile multiplateforme (Android & iOS) qui co
 - **Audio Players** - Gestion de l'audio
 
 ### Backend & Services
-- **Firebase** - Backend et services cloud
+- **Firebase** - Auth
   - Firebase Authentication - Authentification des utilisateurs
-  - Cloud Firestore - Base de données NoSQL
-  - Firebase Core - Services de base
 - **Node.js** - Backend API et serveur Socket.IO
 - **Laravel** - Panel d'administration
 - **Socket.IO** - Communication en temps réel pour les duels
