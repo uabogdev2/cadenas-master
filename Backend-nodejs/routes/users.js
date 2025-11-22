@@ -243,6 +243,9 @@ router.put('/me', authenticateFirebase, async (req, res) => {
     if (photoURL !== undefined) {
       user.photoURL = photoURL;
     }
+    if (req.body.fcmToken !== undefined) {
+      user.fcmToken = req.body.fcmToken;
+    }
     
     await user.save();
     

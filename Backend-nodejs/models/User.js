@@ -35,6 +35,10 @@ const User = sequelize.define('User', {
     allowNull: false,
     defaultValue: 0,
   },
+  fcmToken: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   trophies: {
     type: DataTypes.INTEGER,
     allowNull: false,

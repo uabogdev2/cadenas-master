@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -13,6 +14,7 @@ import 'level_service_nodejs.dart';
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   // Configurer GoogleSignIn avec serverClientId pour iOS
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: kIsWeb 
@@ -37,8 +39,49 @@ class FirebaseService {
 
       // Initialiser les niveaux depuis le serveur Node.js
       await _levelService.initialize();
+
+      // Initialiser FCM
+      await initNotifications();
     } catch (e) {
       print('Erreur lors de l\'initialisation de Firebase: $e');
+    }
+  }
+
+  // Initialiser FCM et sauvegarder le token
+  Future<void> initNotifications() async {
+    try {
+      // Demander la permission
+      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('User granted permission for notifications');
+
+        // Obtenir le token
+        String? token = await _firebaseMessaging.getToken();
+        if (token != null) {
+          print('FCM Token: $token');
+          // Sauvegarder le token sur le backend via UserDataServiceNodeJs
+          if (_auth.currentUser != null) {
+            await _userDataService.saveFcmToken(token);
+          }
+        }
+
+        // Écouter les changements de token
+        _firebaseMessaging.onTokenRefresh.listen((newToken) {
+          if (_auth.currentUser != null) {
+             _userDataService.saveFcmToken(newToken);
+          }
+        });
+
+        // Souscrire au topic global
+        await _firebaseMessaging.subscribeToTopic('all');
+      }
+    } catch (e) {
+      print('Erreur lors de l\'initialisation des notifications: $e');
     }
   }
 

@@ -1,6 +1,37 @@
-const { Battle, Level, User, UserStats } = require('../models');
+const { Battle, Level, User, UserStats, GameConfig } = require('../models');
 const { Op } = require('sequelize');
 const levelService = require('./levelService');
+
+// Récupérer la configuration du jeu
+async function getGameConfig() {
+  try {
+    const [config] = await GameConfig.findOrCreate({
+      where: { id: 1 },
+      defaults: {
+        trophies_win: 100,
+        trophies_loss: 100,
+        trophies_draw: 10,
+        game_timer: 300,
+        question_timer: 30,
+        min_version_android: '1.0.0',
+        min_version_ios: '1.0.0',
+        force_update: false,
+        maintenance_mode: false,
+      }
+    });
+    return config;
+  } catch (error) {
+    console.error('Erreur lors de la récupération de la configuration:', error);
+    // Valeurs par défaut en cas d'erreur
+    return {
+      trophies_win: 100,
+      trophies_loss: 100,
+      trophies_draw: 10,
+      game_timer: 300,
+      question_timer: 30,
+    };
+  }
+}
 
 // Générer un ID de salle aléatoire (6 caractères)
 function generateRoomId() {
@@ -187,6 +218,8 @@ class BattleService {
         finalRoomId = generateRoomId();
       }
       
+      const config = await getGameConfig();
+
       const battle = await Battle.create({
         player1: userId,
         player2: null,
@@ -199,7 +232,7 @@ class BattleService {
         player2Abandoned: false,
         startTime: null,
         endTime: null,
-        totalTimeLimit: 300,
+        totalTimeLimit: config.game_timer,
       });
       
       return battle;
@@ -698,28 +731,30 @@ class BattleService {
       const trophyChanges = {};
       
       if (battle.mode === 'ranked') {
+        const config = await getGameConfig();
+
         // Mode classé : trophées selon le résultat
         if (result === 'draw') {
-          // Match null : +10 pour chacun
-          trophyChanges[battle.player1] = 10;
-          trophyChanges[battle.player2] = 10;
+          // Match null
+          trophyChanges[battle.player1] = config.trophies_draw;
+          trophyChanges[battle.player2] = config.trophies_draw;
         } else {
           // Il y a un gagnant et un perdant
           const winnerId = winner;
           const loserId = winner === battle.player1 ? battle.player2 : battle.player1;
           
-          // Gagnant : +100 trophées
-          trophyChanges[winnerId] = 100;
+          // Gagnant
+          trophyChanges[winnerId] = config.trophies_win;
           
-          // Perdant : -100 trophées (minimum 0)
+          // Perdant
           // Récupérer les trophées actuels du perdant
           const loser = await User.findByPk(loserId);
           if (loser) {
             const currentTrophies = loser.trophies || 0;
-            let newTrophies = currentTrophies - 100;
+            let newTrophies = currentTrophies - config.trophies_loss;
             
-            // Règle spéciale : si le joueur a entre 10 et 90 trophées et perd, il tombe à 0
-            if (currentTrophies >= 10 && currentTrophies <= 90) {
+            // Règle spéciale : si le joueur a moins de trophies_loss mais plus de 10, il tombe à 0
+            if (currentTrophies > 0 && currentTrophies < config.trophies_loss) {
               newTrophies = 0;
             } else {
               // Sinon, minimum 0
