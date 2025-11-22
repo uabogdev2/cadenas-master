@@ -5,6 +5,7 @@ const UserStats = require('./UserStats');
 const UnlockedHints = require('./UnlockedHints');
 const Battle = require('./Battle');
 const Admin = require('./Admin');
+const GameConfig = require('./GameConfig');
 
 // Définir toutes les associations
 User.hasMany(UserProgress, { foreignKey: 'userId', as: 'progress' });
@@ -22,5 +23,6 @@ module.exports = {
   UnlockedHints,
   Battle,
   Admin,
+  GameConfig,
 };
 

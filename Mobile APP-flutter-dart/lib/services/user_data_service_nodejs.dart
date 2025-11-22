@@ -398,5 +398,25 @@ class UserDataServiceNodeJs {
       rethrow;
     }
   }
+
+  /// Sauvegarder le token FCM de l'utilisateur
+  Future<void> saveFcmToken(String token) async {
+    if (!isUserLoggedIn) return;
+
+    try {
+      print('Sauvegarde du token FCM pour l\'utilisateur: $_userId');
+      final response = await _apiService.put('/api/users/me', body: {
+        'fcmToken': token,
+      });
+
+      if (response != null && response['success'] == true) {
+        print('Token FCM sauvegardé avec succès');
+      } else {
+        print('Erreur lors de la sauvegarde du token FCM: ${response?['error']}');
+      }
+    } catch (e) {
+      print('Erreur lors de la sauvegarde du token FCM: $e');
+    }
+  }
 }
 

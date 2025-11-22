@@ -12,6 +12,7 @@ const usersRoutes = require('./routes/users');
 const levelsRoutes = require('./routes/levels');
 const adminRoutes = require('./routes/admin');
 const battlesRoutes = require('./routes/battles');
+const configRoutes = require('./routes/config');
 
 // Importer les modèles pour les associations
 require('./models');
@@ -130,6 +131,7 @@ app.get('/admin-panel', (req, res) => {
 app.use('/api/users', usersRoutes);
 app.use('/api/levels', levelsRoutes);
 app.use('/api/battles', battlesRoutes);
+app.use('/api/config', configRoutes);
 app.use('/admin', adminRoutes);
 
 // Gestion des erreurs

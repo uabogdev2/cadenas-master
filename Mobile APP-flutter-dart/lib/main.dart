@@ -21,6 +21,7 @@ import 'services/ad_service.dart';
 import 'services/audio_service.dart';
 import 'services/connectivity_service.dart';
 import 'services/user_profile_service.dart';
+import 'services/version_check_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -109,6 +110,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       final audioService = AudioService();
       await audioService.initialize();
       await audioService.playMusic();
+
+      // Vérifier la version et la configuration
+      // Note: Le context n'est pas disponible ici, donc on le fera dans le SplashScreen
       
       if (mounted) {
         setState(() {

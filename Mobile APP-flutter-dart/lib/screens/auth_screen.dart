@@ -203,11 +203,12 @@ class _AuthScreenState extends State<AuthScreen> {
                   ],
                   
                   // Bouton Invité avec style glassmorphism
-                  _buildGlassButton(
-                    onPressed: _isLoading ? null : _handleAnonymousSignIn,
-                    icon: Icons.person_outline,
-                    label: 'JOUER EN TANT QU\'INVITÉ',
-                  ),
+                  if (false) // Désactivé sur demande
+                    _buildGlassButton(
+                      onPressed: _isLoading ? null : _handleAnonymousSignIn,
+                      icon: Icons.person_outline,
+                      label: 'JOUER EN TANT QU\'INVITÉ',
+                    ),
                   
                   const SizedBox(height: 40),
                   

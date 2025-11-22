@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:async';
 import '../theme/app_theme.dart';
 import '../services/connectivity_service.dart';
+import '../services/version_check_service.dart';
 import 'package:flutter/services.dart';
 
 /// Écran de démarrage (Splash Screen) - Affiche après l'initialisation, vérifie l'authentification
@@ -46,8 +47,21 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       print('Erreur lors du chargement de la version: $e');
     }
   }
+
+  Future<void> _checkAppVersion() async {
+    // Vérifier la version et la maintenance
+    // Cette méthode est appelée pendant le chargement
+    // On ne fait pas await ici pour ne pas bloquer l'animation,
+    // mais le service affichera une dialog si besoin une fois chargé.
+    // Idéalement on devrait attendre le résultat avant de quitter le splash,
+    // mais pour l'instant on laisse en parallèle car la dialog bloquera si besoin.
+    VersionCheckService().checkVersion(context);
+  }
   
   void _startLoadingAnimation() async {
+    // Lancer la vérification de version
+    _checkAppVersion();
+
     // Animation de progression du chargement (simulation)
     _progressAnimationController = AnimationController(
       duration: const Duration(milliseconds: 2000),

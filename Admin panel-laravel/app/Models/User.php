@@ -36,6 +36,7 @@ class User extends Authenticatable
         'points',
         'completedLevels',
         'trophies',
+        'fcmToken',
         'createdAt',
         'updatedAt',
     ];
